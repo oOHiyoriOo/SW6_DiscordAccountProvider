@@ -1,0 +1,30 @@
+{% sw_extends '@Storefront/storefront/layout/header/account-menu.html.twig' %}
+
+{% block layout_header_actions_account_widget_dropdown_login %}
+    {% if not context.customer %}
+        <div class="account-menu-login">
+            {% block layout_header_actions_account_widget_dropdown_login_login %}
+
+                {% set discordAuthURL = config('MDDiscordLogin.config.discordAuthUrl') %}
+
+                {% set hrefValue = 'javascript:void(0);' %}
+                {% set classValue = 'btn btn-primary account-menu-login-button disabled-a' %}
+
+                {% if discordAuthURL is not empty and discordAuthURL starts with 'https://discord.com/api/oauth2/authorize' %}
+                    {% set hrefValue = discordAuthURL %}
+                    {% set classValue = 'btn btn-primary account-menu-login-button' %}
+                {% endif %}
+
+                <a href="{{ hrefValue }}"
+                    title="{{ "account.loginSubmit"|trans|striptags }}"
+                    class="{{ classValue }}">
+                    {{ "account.loginSubmit"|trans|sw_sanitize }}
+                </a>
+
+            {% endblock %}
+
+
+            {% block layout_header_actions_account_widget_dropdown_login_register %}{% endblock %}
+        </div>
+    {% endif %}
+{% endblock %}

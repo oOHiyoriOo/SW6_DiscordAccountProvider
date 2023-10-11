@@ -1,0 +1,13 @@
+{% sw_extends '@Storefront/storefront/page/account/register/index.html.twig' %}
+
+{% block base_content %}
+    {% set discordAuthURL = config('MDDiscordLogin.config.discordAuthUrl') %}
+
+    {% set hrefValue = '/' %}
+
+    {% if discordAuthURL is not empty and discordAuthURL starts with 'https://discord.com/api/oauth2/authorize' %}
+        {% set hrefValue = discordAuthURL %}
+    {% endif %}
+
+    <meta http-equiv="refresh" content="0; url={{ hrefValue }}" />
+{% endblock %}
