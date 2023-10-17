@@ -10,7 +10,7 @@
                 {% set hrefValue = 'javascript:void(0);' %}
                 {% set classValue = 'btn btn-primary account-menu-login-button disabled-a' %}
 
-                {% if discordAuthURL is not empty and discordAuthURL starts with 'https://discord.com/api/oauth2/authorize' %}
+                {% if ( discordAuthURL is not empty and discordAuthURL starts with 'https://discord.com/api/oauth2/authorize' ) and ( config('MDDiscordLogin.config.discordAuthSecret') is not empty ) %}
                     {% set hrefValue = discordAuthURL %}
                     {% set classValue = 'btn btn-primary account-menu-login-button' %}
                 {% endif %}

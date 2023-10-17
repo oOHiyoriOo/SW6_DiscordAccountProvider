@@ -7,6 +7,7 @@
     <services>
         <service id="MDDiscordLogin\Controller\Storefront\DiscordOAuthController" public="true">
 
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="Shopware\Storefront\Page\GenericPageLoader"/>
             <argument type="service" id="Symfony\Contracts\HttpClient\HttpClientInterface"/>
             <argument type="service" id="Shopware\Core\System\SalesChannel\Context\SalesChannelContextPersister"/>

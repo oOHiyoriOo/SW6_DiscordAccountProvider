@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title>Discord Settings</title>
+
+        <input-field type="text">
+            <name>discordAuthUrl</name>
+            <label>Discord Authentication URL</label>
+        </input-field>
+
+        <input-field type="password">
+            <name>discordAuthSecret</name>
+            <label>Discord Application Secret</label>
+        </input-field>
+
+        <input-field type="text">
+            <name>discordAuthClientId</name>
+            <label>Discord Application ID</label>
+        </input-field>
+
+        <component name="sw-entity-single-select">
+            <name>discordDefLang</name>
+            <entity>country</entity>
+            <label>Default Language of Discord Users</label>
+        </component>
+    </card>
+
+</config>

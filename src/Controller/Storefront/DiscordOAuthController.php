@@ -18,6 +18,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Util\Random;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 /** 
  * @Route(defaults={"_routeScope"={"storefront"}})
@@ -29,19 +30,26 @@ class DiscordOAuthController extends StorefrontController {
     private HttpClientInterface $httpClient;
     private SalesChannelContextPersister $contextPersister;
     private AccountService $accountService;
+    private SystemConfigService $systemConfigService;
 
     public function __construct(
+        SystemConfigService $systemConfigService,
         GenericPageLoader $genericPageLoader,
         HttpClientInterface $httpClient,
         SalesChannelContextPersister $contextPersister,
         AccountService $accountService,
         EntityRepository $customerRepository
     ) {
+        $this->systemConfigService = $systemConfigService;
         $this->genericPageLoader = $genericPageLoader;
         $this->httpClient = $httpClient;
         $this->contextPersister = $contextPersister;
         $this->accountService = $accountService;
         $this->customerRepository = $customerRepository; 
+
+        // DISCORD STUFF
+        $this->DISCORD_CLIENT_ID = $this->systemConfigService->get('MDDiscordLogin.config.discordAuthClientId');
+        $this->DISCORD_CLIENT_SECRET = $this->systemConfigService->get('MDDiscordLogin.config.discordAuthSecret');        
     }
 
     /**
@@ -63,7 +71,33 @@ class DiscordOAuthController extends StorefrontController {
         $tokenType = $request->request->get('tokenType');
         $accessToken = $request->request->get('accessToken');
         $expires_in = $request->request->get('expires_in');
+        $this->base_url = $request->request->get('base');
+
+        if($tokenType == null && $expires_in == null && $accessToken != null){
+            $data = ($this->exchangeCode( $accessToken ));
+
+            if( $data === false ){ 
+                return new JsonResponse([
+                    'error' => true, 
+                    'msg' => 'The spirits were unable to conjure the Scrolls. Please try again later.'
+                ]);
+             }
+
+            $tokenType = $data['token_type'];
+            $accessToken = $data['access_token'];
+            $expires_in = $data['expires_in'];
+        }
         
+        // fallback to prevent 500 stuff or something like that.
+        if( $tokenType == null || $expires_in == null || $accessToken == null ){
+            return new JsonResponse([
+                'error' => true, 
+                'msg' => 'The spirits were unable to conjure the new citizen. Please try again later.'
+            ]);
+        }
+
+
+
         try {
             $response = $this->httpClient->request('GET', 'https://discord.com/api/users/@me', [
                 'headers' => [
@@ -71,8 +105,6 @@ class DiscordOAuthController extends StorefrontController {
                 ],
             ]);
         } catch (TransportExceptionInterface $e) {
-            // The spell to reach the realm of Discord has faltered.
-            // Let us send a whisper back to the seeker, guiding them back to the path.
             return new JsonResponse([
                 'error' => true, 
                 'msg' => 'The stars have briefly veered off course. The spell to reach the realm of Discord has faltered. Please retry the spell of login, and the gateway shall unfold before thee.'
@@ -83,7 +115,7 @@ class DiscordOAuthController extends StorefrontController {
         
         // Assuming $userData contains the Discord user data
         $discordId = $userData['id'];
-        $email = $userData['username'] . '@discord.com';  // Making up an email
+        $email = $userData['email'];
 
         // Check if a customer with this discord-crafted email already exists
         $criteria = new Criteria();
@@ -97,6 +129,17 @@ class DiscordOAuthController extends StorefrontController {
                 ['customerId' => $existingCustomer->getId()],
                 $context->getSalesChannel()->getId()
             );
+
+            // Now, let's imbue their record with new essence
+            $updateData = [
+                'id' => $existingCustomer->getId(),
+                'customFields' => [
+                    'discord_data' => $userData,
+                ]
+            ];
+            
+            $this->customerRepository->upsert([$updateData], $context->getContext());
+            
         } else {
             
             $newCustomer = $this->createCustomer($context, $userData);
@@ -127,7 +170,7 @@ class DiscordOAuthController extends StorefrontController {
 
 
     private function createCustomer(SalesChannelContext $context, array $userData): ?CustomerEntity {
-        $email = $userData['username'] . '@discord.com';  // Making up an email
+        $email = $userData['email'];
 
         $this->customerRepository->create(
             [
@@ -142,15 +185,14 @@ class DiscordOAuthController extends StorefrontController {
                     'defaultBillingAddress' => [
                         'firstName' => $userData['username'],
                         'lastName' => 'Discord',
-                        'countryId' => '018b185586c6732eb260d010b805180d',
+                        'countryId' => $this->systemConfigService->get('MDDiscordLogin.config.discordDefLang'),
                         'street' => 'unknown',
                         'zipcode' => 'unknown',
                         'city' => 'unknown',
                     ],
                     'customerNumber' => $userData['id'],
                     'customFields' => [
-                        'discord_avatar' => $userData['avatar'],
-                        'discord_banner' => $userData['banner']
+                        'discord_data' => $userData
                     ]
                 ]
             ],
@@ -168,5 +210,31 @@ class DiscordOAuthController extends StorefrontController {
         }
 
         return null;
+    }
+
+
+     public function exchangeCode($code) {
+        $response = $this->httpClient->request('POST', 'https://discord.com/api/v10/oauth2/token', [
+            'headers' => [
+                'Content-Type' => 'application/x-www-form-urlencoded',
+                'Authorization' => 'Basic ' . base64_encode("$this->DISCORD_CLIENT_ID:$this->DISCORD_CLIENT_SECRET"),
+            ],
+            'body' => [
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'redirect_uri' => $this->base_url . 'discord/auth'
+            ],
+        ]);
+
+        try {
+            $statusCode = $response->getStatusCode();
+            if ($statusCode == 200) {
+                return $response->toArray();  // This method will throw an exception if the JSON cannot be decoded
+            } else {
+                return false;
+            }
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 }
